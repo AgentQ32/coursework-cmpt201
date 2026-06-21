@@ -117,3 +117,58 @@ int main(void) {
   }
   return 0;
 }
+
+/*
+ * Pseudococde for Coalescing Contiguous Free Blocks
+ * Notes: Struct header must now have a flag is_free to indicate if a block is freed or not
+ * Need to merge both previous and next neighbors if they are free
+ * If all is freed and everything is just one block no need to do anything
+ * two new functions 1. to free and check if the memory blocks can merge
+ * 2. to merge memory blocks called upon by 1st function
+ *
+ * FUNCTION coalesce(free_list_ptr, free_blk):
+ * free_blk.is_free = true
+ * free_blk.next = free_list_ptr
+ * free_list_ptr = free_blk
+ *
+ * SET prev = NULL
+ * SET curr = free_list_ptr
+ *
+ * // Iterate through list to find free neighbors
+ * WHILE curr is NOT NULL
+ * // Find end points of current block and the free block
+ * SET curr_end = AddressOF(curr) + sizeof(header)_ + curr.size
+ * SET free_blk_end = AddressOf(free_blk) + sizeof(header) + free_blk.size
+ *
+ * // When current block is before the free block
+ * IF curr_end == AddressOf(free_blk)
+ *    // Merge free_blk to its prev neighbor current
+ *    curr.size = sizeof(header) + curr.size + free_blk.size
+ *
+ *    // free the free_blk
+ *    free_list_ptr = free_blk.next
+ *    FUNCTION CALL free(free_blk)
+ *
+ *    // Current block now is the new free block
+ *    free_blk = current
+ *
+ *    curr = free_list_ptr
+ *    prev = NULL
+ *    CONTINUE
+ *
+ * // When current block is after the free block
+ * ELSE IF free_blk_end == AddressOf(curr)
+ *    // Merge free_blk into its next neighbor current
+ *    free_blk.size = sizeof(header) + free_blk.size + curr.size
+ *
+ *    // free current block
+ *    IF prev is NOT NULL
+ *      prev.next = curr.next
+ *    ELSE
+ *      free_list_ptr = curr.next
+ *
+ *    SET copy = curr
+ *    curr = curr.next
+ *    FUNCTION CALL free(copy)
+ *
+ * ENDFUNCTION*/
