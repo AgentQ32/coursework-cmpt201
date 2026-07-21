@@ -32,6 +32,10 @@ static void add_word_counts_in_chunk(count_map_t *map, word_t *words, size_t num
   // Make this function thread-safe by using the lock
 
   for (size_t i = 0; i < num_words; i++) {
+    if (lock) {
+      pthread_mutex_lock(lock);
+    }
+
     word_count_entry_t *w = NULL;
     HASH_FIND_STR(*map, words[i], w);
 
@@ -40,6 +44,10 @@ static void add_word_counts_in_chunk(count_map_t *map, word_t *words, size_t num
     } else {
       w = create_entry(words[i], 1);
       HASH_ADD_STR(*map, word, w);
+    }
+
+    if (lock) {
+      pthread_mutex_unlock(lock);
     }
   }
 }
@@ -77,15 +85,20 @@ static count_map_t count_words_parallel(word_t *words, size_t num_words) {
         chunk_size + (i == THREAD_COUNT - 1 ? num_words % THREAD_COUNT : 0);
 
     // TODO: Prepare the arguments and launch the threads
-    threads_args[i] = pack_args(&map, words, num_words, &count_mutex);
+    count_thread_args_t *args =
+        pack_args(&map, thread_arg_words, thread_arg_num_words, &count_mutex);
 
-    int launch_thread =
-        pthread_create(&threads[i], NULL, counter_thread_func, (void *)&threads_args[i]);
+    // int launch_thread =
+    //     pthread_create(&threads[i], NULL, counter_thread_func, (void *)&threads_args[i]);
 
-    if (launch_thread != 0) {
-      fprintf(stderr, "thread creation failed for thread %zu with code %d\n!", i, launch_thread);
-      exit(EXIT_FAILURE);
-    }
+    // if (launch_thread != 0) {
+    //   fprintf(stderr, "thread creation failed for thread %zu with code %d\n!", i, launch_thread);
+    //   exit(EXIT_FAILURE);
+    // }
+    threads_args[i] = args;
+
+    // Launch Threads
+    pthread_create(&threads[i], NULL, counter_thread_func, args);
   }
 
   // TODO: Wait for threads to finish
@@ -96,12 +109,13 @@ static count_map_t count_words_parallel(word_t *words, size_t num_words) {
       fprintf(stderr, "join thread failed for thread %zu with code %d\n!", i, join_thread);
       exit(EXIT_FAILURE);
     }
-
-    free(threads_args[i]);
   }
 
   // TODO: Cleanup
   pthread_mutex_destroy(&count_mutex);
+  for (size_t i = 0; i < THREAD_COUNT; i++) {
+    free(threads_args[i]);
+  }
 
   return map;
 }
